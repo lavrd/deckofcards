@@ -8,6 +8,8 @@ import (
 
 const (
 	DefaultRemaining = 52
+
+	Discard = "discard"
 )
 
 var (
@@ -42,6 +44,12 @@ var (
 	}
 )
 
+type Pile struct {
+	Cards     Cards `json:"cards"`
+	Remaining int   `json:"remaining"`
+}
+type Piles map[string]*Pile
+
 type Card struct {
 	SVG   string `json:"svg"`
 	Value string `json:"value"`
@@ -54,13 +62,14 @@ type Deck struct {
 	Shuffled  bool  `json:"shuffled"`
 	Remaining int   `json:"remaining"`
 	Cards     Cards `json:"cards"`
+	Piles     Piles `json:"piles"`
 }
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func DefaultDeck() *Deck {
+func (d *Deck) Default() *Deck {
 	var (
 		cards Cards
 	)
@@ -81,10 +90,18 @@ func DefaultDeck() *Deck {
 		cards = append(cards, card)
 	}
 
-	return &Deck{
-		Cards:     cards,
-		Remaining: DefaultRemaining,
-	}
+	var (
+		deck = &Deck{
+			Cards:     cards,
+			Remaining: DefaultRemaining,
+			Piles: Piles{
+				Discard: &Pile{},
+			},
+		}
+	)
+
+	d = deck
+	return deck
 }
 
 func (d *Deck) Shuffle() *Deck {
@@ -93,7 +110,6 @@ func (d *Deck) Shuffle() *Deck {
 	})
 
 	d.Shuffled = true
-
 	return d
 }
 
@@ -112,13 +128,44 @@ func (d *Deck) Partial(partials ...string) *Deck {
 
 	d.Cards = cards
 	d.Remaining = len(cards)
-
 	return d
+}
+
+func (d *Deck) Pile(name string, cards Cards) *Pile {
+	var (
+		pile = &Pile{
+			Cards:     cards,
+			Remaining: len(cards),
+		}
+	)
+
+	d.Piles[name] = pile
+	return pile
+}
+
+func (p *Pile) Draw(count int) Cards {
+	var (
+		cards Cards
+	)
+
+	for range toRange(count) {
+		i := rand.Intn(p.Remaining)
+		cards = append(cards, p.Cards[i])
+		p.Delete(i)
+	}
+
+	return cards
+}
+
+func (p *Pile) Delete(i int) *Pile {
+	p.Cards = append(p.Cards[:i], p.Cards[i+1:]...)
+	p.Remaining--
+	return p
 }
 
 func New(shuffle bool) *Deck {
 	var (
-		deck = DefaultDeck()
+		deck = (&Deck{}).Default()
 	)
 
 	if shuffle {
@@ -135,7 +182,6 @@ func toRange(n int) []struct{} {
 func (d *Deck) Delete(i int) *Deck {
 	d.Cards = append(d.Cards[:i], d.Cards[i+1:]...)
 	d.Remaining--
-
 	return d
 }
 
@@ -143,6 +189,10 @@ func (d *Deck) Draw(count int) Cards {
 	var (
 		cards Cards
 	)
+
+	if count > d.Remaining {
+		count = d.Remaining
+	}
 
 	for range toRange(count) {
 		i := rand.Intn(d.Remaining)

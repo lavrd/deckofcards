@@ -24,14 +24,14 @@ func TestNew(t *testing.T) {
 
 func TestDeck_Draw(t *testing.T) {
 	var (
-		count = 10
+		count = 131
 	)
 
 	deck := deckofcards.New(false)
 
 	deck.Draw(count)
 
-	if deck.Remaining != deckofcards.DefaultRemaining-count {
+	if deck.Remaining != 0 {
 		t.Error("drawing invalid number of cards")
 	}
 }
@@ -92,7 +92,7 @@ func TestDeck_Shuffle(t *testing.T) {
 	}
 }
 
-func TestDefaultDeck(t *testing.T) {
+func TestDeck_Default(t *testing.T) {
 	deck := deckofcards.New(false)
 
 	if deck.Shuffled {
@@ -105,5 +105,50 @@ func TestDefaultDeck(t *testing.T) {
 
 	if deck.Cards == nil {
 		t.Error("cards must not be nil")
+	}
+}
+
+func TestDeck_Pile(t *testing.T) {
+	const (
+		count = 2
+		name  = "player"
+	)
+
+	deck := deckofcards.New(false)
+
+	pile := deck.Pile("player", deck.Draw(count))
+
+	if pile.Remaining != count {
+		t.Errorf("pile remaining must be %v", count)
+	}
+
+	if deck.Piles[name].Remaining != count {
+		t.Errorf("pile remaining must be %v", count)
+	}
+}
+
+func TestPile_Delete(t *testing.T) {
+	deck := deckofcards.New(false)
+	pile := deck.Pile("player", deck.Draw(1))
+
+	pile.Delete(0)
+
+	if pile.Remaining != 0 {
+		t.Error("remaining must be 0")
+	}
+}
+
+func TestPile_Draw(t *testing.T) {
+	deck := deckofcards.New(false)
+	pile := deck.Pile("player", deck.Draw(1))
+
+	cards := pile.Draw(1)
+
+	if len(cards) != 1 {
+		t.Error("cards len must be 1")
+	}
+
+	if pile.Remaining != 0 {
+		t.Error("remaining must be 0")
 	}
 }
